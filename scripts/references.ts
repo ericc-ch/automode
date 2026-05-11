@@ -17,6 +17,21 @@ const repositories = [
     directory: "effect-smol",
     url: "https://github.com/Effect-TS/effect-smol.git",
   },
+  {
+    name: "OpenAI Codex",
+    directory: "codex",
+    url: "https://github.com/openai/codex.git",
+  },
+  {
+    name: "OpenCode",
+    directory: "opencode",
+    url: "https://github.com/anomalyco/opencode.git",
+  },
+  {
+    name: "Pi Autoresearch",
+    directory: "pi-autoresearch",
+    url: "https://github.com/davebcn87/pi-autoresearch.git",
+  },
 ] satisfies ReadonlyArray<ReferenceRepository>
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))

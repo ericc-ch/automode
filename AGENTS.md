@@ -15,3 +15,12 @@ Prefer exploring and reading this directory over searching for documentation. Th
 Available references:
 
 - effect-smol - Effect v4
+- codex - OpenAI Codex
+- opencode - OpenCode
+- pi-autoresearch - Pi Autoresearch
+
+# External documentation
+
+Not vendored under `.references/`:
+
+- https://cursor.com/docs/sdk/typescript - Cursor SDK
