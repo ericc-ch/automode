@@ -14,11 +14,11 @@ External CLI that orchestrates coding agents in a loop: **episodes** (spawn driv
 
 ## CLI surface
 
-| Command | Purpose |
-|---------|---------|
-| **`automode init`** | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`). |
-| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the episode loop. |
-| **`automode doc [topic]`** | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. |
+| Command                       | Purpose                                                                                                                        |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                               |
+| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the episode loop.                                                                 |
+| **`automode doc [topic]`**    | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. |
 
 **No** required `automode run` subcommand for the default path if desired: **`automode --agent cursor …`** can imply `run`—but **`automode run <workflow>`** stays the clear primary for multi-workflow repos.
 
@@ -53,14 +53,14 @@ export default defineConfig((ctx) => ({
   prompt: () => {
     // Return the full string sent to the driver this lap.
     // Read files, template literals, build from ctx — all allowed.
-    return `You are in iteration ${ctx.iteration}. …`;
+    return `You are in iteration ${ctx.iteration}. …`
   },
 
   shouldContinue: () => {
     // Return false to end the outer loop (replaces a ctx.stop() side effect).
-    return ctx.iteration < 50 /* && !fs.existsSync("DONE") */;
+    return ctx.iteration < 50 /* && !fs.existsSync("DONE") */
   },
-}));
+}))
 ```
 
 Naming: **`defineConfig`** (not `defineWorkflow`) to keep mental model “this folder is a config package.”
@@ -76,10 +76,10 @@ Naming: **`defineConfig`** (not `defineWorkflow`) to keep mental model “this f
 
 The factory **`defineConfig((ctx) => …)`** receives a **single `ctx` object** (same reference for the whole run). Between laps the runner **mutates** that object (e.g. **`ctx.iteration`**) so closures in **`prompt`** / **`shouldContinue`** always see up-to-date values. Further fields TBD in implementation. Documented minimum:
 
-| Member | Role |
-|--------|------|
+| Member              | Role                                                             |
+| ------------------- | ---------------------------------------------------------------- |
 | **`ctx.iteration`** | Lap counter (0- vs 1-based: fix in implementation and document). |
-| **`ctx.cwd`** | Workspace root for this workflow. |
+| **`ctx.cwd`**       | Workspace root for this workflow.                                |
 
 **Later (when needed):** last exit code, paths to transcript, `ctx.exec`, driver/model overrides, signal/abort, etc.
 
