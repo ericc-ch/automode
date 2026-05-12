@@ -60,9 +60,16 @@ export const make = (input: WorkflowConfigInput) =>
       catch: (cause) => new ConfigLoadError({ cause }),
     })
 
-    if (typeof raw !== "object" || !raw || typeof raw.prompt !== "function" || typeof raw.shouldContinue !== "function") {
+    if (
+      typeof raw !== "object" ||
+      !raw ||
+      typeof raw.prompt !== "function" ||
+      typeof raw.shouldContinue !== "function"
+    ) {
       return yield* new ConfigLoadError({
-        cause: new Error("Config factory must return { prompt: () => string, shouldContinue: () => boolean }"),
+        cause: new Error(
+          "Config factory must return { prompt: () => string, shouldContinue: () => boolean }",
+        ),
       })
     }
 
