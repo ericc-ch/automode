@@ -1,20 +1,18 @@
 import { Effect, Schema } from "effect"
-import { make, type WorkflowConfigInput } from "./lib/config.ts"
+import { WorkflowConfig, type WorkflowConfigInput } from "./lib/config.ts"
 
 // @ts-ignore - Assuming @cursor/sdk might not be installed yet
 import { Agent } from "@cursor/sdk"
 
 export {
   ConfigLoadError,
-  Ctx,
+  RunContext as Ctx,
   WorkflowConfig,
   defineConfig,
-  layer,
-  make,
   makeContext,
 } from "./lib/config.ts"
 
-export type { CtxType, Workflow, WorkflowConfigInput } from "./lib/config.ts"
+export type { CtxType, Config as Workflow, WorkflowConfigInput } from "./lib/config.ts"
 
 export class RunWorkflowError extends Schema.TaggedErrorClass<RunWorkflowError>()(
   "RunWorkflowError",
@@ -25,7 +23,7 @@ export class RunWorkflowError extends Schema.TaggedErrorClass<RunWorkflowError>(
 
 export const runWorkflow = (input: WorkflowConfigInput, maxIterations = 50) =>
   Effect.gen(function* () {
-    const config = yield* make(input)
+    const config = yield* WorkflowConfig.make(input)
     const { ctx, handlers } = config
 
     const apiKey = process.env.CURSOR_API_KEY
