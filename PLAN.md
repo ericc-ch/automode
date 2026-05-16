@@ -1,6 +1,6 @@
 # automode — product plan
 
-External CLI that orchestrates coding agents in a loop: **episodes** (spawn driver → capture output) with **workflow logic in TypeScript**. The runner makes **no assumptions** about which files exist beyond **`.automode/<workflow>/config.ts`**; mission text, checklists, logs, or sentinels are entirely up to your `prompt` and `shouldContinue` implementations (read `plan.md`, grep git, parse stdout, etc., if you want).
+External CLI that orchestrates coding agents in a loop: **sessions** (spawn driver → capture output) with **workflow logic in TypeScript**. The runner makes **no assumptions** about which files exist beyond **`.automode/<workflow>/config.ts`**; mission text, checklists, logs, or sentinels are entirely up to your `prompt` and `shouldContinue` implementations (read `plan.md`, grep git, parse stdout, etc., if you want).
 
 ---
 
@@ -17,7 +17,7 @@ External CLI that orchestrates coding agents in a loop: **episodes** (spawn driv
 | Command                       | Purpose                                                                                                                        |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                               |
-| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the episode loop.                                                                 |
+| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the session loop. |
 | **`automode doc [topic]`**    | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. |
 
 **No** required `automode run` subcommand for the default path if desired: **`automode --agent cursor …`** can imply `run`—but **`automode run <workflow>`** stays the clear primary for multi-workflow repos.
@@ -85,7 +85,7 @@ The factory **`defineConfig((ctx) => …)`** receives a **single `ctx` object** 
 
 ---
 
-## Episode loop (runner behavior)
+## Session loop (runner behavior)
 
 1. Resolve **`.automode/<workflow>/config.ts`**, construct **`ctx`**, call **`defineConfig(ctx)` exactly once** to obtain **`{ prompt, shouldContinue }`**, and keep that pair for the entire episode loop.
 2. **Loop:**

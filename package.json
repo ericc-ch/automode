@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@effect/platform-node": "^4.0.0-beta.59",
+    "@opencode-ai/sdk": "^1.15.1",
     "effect": "^4.0.0-beta.59"
   },
   "devDependencies": {

@@ -1,81 +1,34 @@
-import { Effect, Schema } from "effect"
-import { WorkflowConfig, type WorkflowConfigInput } from "./lib/config.ts"
+import { createOpencode } from "@opencode-ai/sdk/v2"
+import { Effect } from "effect"
+import { RunContext, WorkflowConfig } from "./lib/config.ts"
 
-// @ts-ignore - Assuming @cursor/sdk might not be installed yet
-import { Agent } from "@cursor/sdk"
+export { RunContext, WorkflowConfig } from "./lib/config.ts"
+export type { Config as Workflow } from "./lib/config.ts"
 
-export {
-  ConfigLoadError,
-  RunContext as Ctx,
-  WorkflowConfig,
-  defineConfig,
-  makeContext,
-} from "./lib/config.ts"
-
-export type { CtxType, Config as Workflow, WorkflowConfigInput } from "./lib/config.ts"
-
-export class RunWorkflowError extends Schema.TaggedErrorClass<RunWorkflowError>()(
-  "RunWorkflowError",
-  {
-    cause: Schema.Defect,
-  },
-) {}
-
-export const runWorkflow = (input: WorkflowConfigInput, maxIterations = 50) =>
+export const run = (workflowName: string) =>
   Effect.gen(function* () {
-    const config = yield* WorkflowConfig.make(input)
-    const { ctx, handlers } = config
+    const config = yield* WorkflowConfig
+    const workflow = yield* config.load(workflowName)
 
-    const apiKey = process.env.CURSOR_API_KEY
-    if (!apiKey) {
-      yield* Effect.logWarning("CURSOR_API_KEY is not set. Agent may fail.")
-    }
+    let ctx = new RunContext({ iteration: 0 })
 
-    // Initialize the Cursor Agent
-    const agent = yield* Effect.tryPromise({
-      try: () =>
-        Agent.create({
-          apiKey: apiKey || "dummy-key",
-          model: { id: "composer-2" },
-          local: { cwd: input.cwd },
-        }) as Promise<{ send: (p: string) => Promise<{ stream: () => AsyncIterable<unknown> }> }>,
-      catch: (cause) =>
-        new RunWorkflowError({
-          cause: new Error(`Failed to create Cursor Agent: ${String(cause)}`),
+    const opencode = yield* Effect.promise(() => createOpencode())
+
+    while (workflow.shouldContinue(ctx)) {
+      const promptText = workflow.prompt(ctx)
+
+      const session = yield* Effect.promise(() => opencode.client.session.create())
+      const sessionID = session.data?.id ?? "lmao"
+
+      yield* Effect.promise(() =>
+        opencode.client.session.prompt({
+          sessionID,
+          parts: [{ type: "text", text: promptText }],
         }),
-    })
+      )
 
-    // Episode Loop
-    while (handlers.shouldContinue() && ctx.iteration < maxIterations) {
-      const promptText = handlers.prompt()
-      yield* Effect.logInfo(`[Iteration ${ctx.iteration}] Spawning agent...`)
-
-      // Send the prompt to the driver
-      const run = yield* Effect.tryPromise({
-        try: () => agent.send(promptText),
-        catch: (cause) =>
-          new RunWorkflowError({ cause: new Error(`Agent run failed: ${String(cause)}`) }),
-      })
-
-      // Wait for stream to complete (capturing artifacts/logs)
-      yield* Effect.tryPromise({
-        try: async () => {
-          for await (const event of run.stream()) {
-            // Naive logging of agent events
-            console.log(`[Agent Event]`, event)
-          }
-        },
-        catch: (cause) =>
-          new RunWorkflowError({ cause: new Error(`Agent stream failed: ${String(cause)}`) }),
-      })
-
-      // Mutate context for the next lap
-      ctx.iteration++
+      ctx = new RunContext({ iteration: ctx.iteration + 1 })
     }
 
-    if (ctx.iteration >= maxIterations) {
-      yield* Effect.logWarning(`Max iterations (${maxIterations}) reached.`)
-    } else {
-      yield* Effect.logInfo(`Workflow finished gracefully after ${ctx.iteration} iterations.`)
-    }
+    opencode.server.close()
   })
