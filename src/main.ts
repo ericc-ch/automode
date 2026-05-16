@@ -1,7 +1,7 @@
 import { createOpencode } from "@opencode-ai/sdk/v2"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
 import { RunContext, WorkflowConfig } from "./lib/config.ts"
-
+import { NodeRuntime, NodeServices } from "@effect/platform-node"
 export { RunContext, WorkflowConfig } from "./lib/config.ts"
 export type { Config as Workflow } from "./lib/config.ts"
 
@@ -20,15 +20,28 @@ export const run = (workflowName: string) =>
       const session = yield* Effect.promise(() => opencode.client.session.create())
       const sessionID = session.data?.id ?? "lmao"
 
-      yield* Effect.promise(() =>
+      const result = yield* Effect.promise(() =>
         opencode.client.session.prompt({
+          model: {
+            providerID: "opencode",
+            modelID: "deepseek-v4-flash-free",
+          },
           sessionID,
           parts: [{ type: "text", text: promptText }],
         }),
       )
+
+      yield* Effect.log(result)
 
       ctx = new RunContext({ iteration: ctx.iteration + 1 })
     }
 
     opencode.server.close()
   })
+
+const layers = Layer.empty.pipe(
+  Layer.merge(WorkflowConfig.layer),
+  Layer.provide(NodeServices.layer),
+)
+
+NodeRuntime.runMain(Effect.provide(run("test"), layers))

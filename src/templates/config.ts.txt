@@ -1,0 +1,11 @@
+import type { Config } from "automode"
+
+export default {
+  prompt: (ctx) => {
+    return `You are in iteration ${ctx.iteration}. Continue the task.`
+  },
+
+  shouldContinue: (ctx) => {
+    return ctx.iteration < 5
+  },
+} satisfies Config

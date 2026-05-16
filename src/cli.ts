@@ -1,43 +1,43 @@
 #!/usr/bin/env node
 
-import { Console, Effect, Layer } from "effect"
-import { Argument, Command, Flag } from "effect/unstable/cli"
+import { Console, Effect, FileSystem, Path } from "effect"
+import { Argument, Command } from "effect/unstable/cli"
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
+import { fileURLToPath } from "node:url"
 
-const name = Argument.string("name").pipe(Argument.optional)
+const templatePath = fileURLToPath(new URL("./templates/config.ts.txt", import.meta.url))
 
-const bold = Flag.boolean("bold").pipe(
-  Flag.withAlias("b"),
-  Flag.withDefault(false),
-  Flag.withDescription("Print in bold"),
-)
+const workflow = Argument.string("workflow")
 
-const helloCommand = Command.make(
-  "hello",
-  { name, bold },
-  Effect.fn(function* ({ name, bold }) {
-    const message = `Hello${name._tag === "Some" ? `, ${name.value}` : ""}!`
-    yield* Console.log(bold ? `**${message}**` : message)
+const initCommand = Command.make(
+  "init",
+  { workflow },
+  Effect.fn(function* ({ workflow }) {
+    const fs = yield* FileSystem.FileSystem
+    const path = yield* Path.Path
+
+    const dir = path.join(".automode", workflow)
+    const configFile = path.join(dir, "config.ts")
+
+    yield* fs.makeDirectory(dir, { recursive: true })
+
+    const template = yield* fs.readFileString(templatePath)
+    yield* fs.writeFileString(configFile, template)
+
+    yield* Console.log(`Created ${configFile}`)
   }),
 ).pipe(
-  Command.withDescription("Say hello"),
+  Command.withDescription("Scaffold a new workflow"),
   Command.withExamples([
-    { command: "pkg-placeholder hello", description: "Say hello" },
-    { command: "pkg-placeholder hello John", description: "Say hello to John" },
-    {
-      command: "pkg-placeholder hello --bold",
-      description: "Say hello in bold",
-    },
+    { command: "automode init my-workflow", description: "Create .automode/my-workflow/config.ts" },
   ]),
 )
 
-const command = Command.make("pkg-placeholder", {}).pipe(
-  Command.withDescription("CLI starter template"),
-  Command.withSubcommands([helloCommand]),
+const command = Command.make("automode", {}).pipe(
+  Command.withDescription("Orchestrate coding agents in a loop"),
+  Command.withSubcommands([initCommand]),
 )
 
 const cli = Command.run(command, { version: "0.0.1" })
 
-const MainLayer = Layer.empty.pipe(Layer.provideMerge(NodeServices.layer))
-
-NodeRuntime.runMain(cli.pipe(Effect.provide(MainLayer)))
+NodeRuntime.runMain(cli.pipe(Effect.provide(NodeServices.layer)))

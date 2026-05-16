@@ -6,7 +6,7 @@ External CLI that orchestrates coding agents in a loop: **sessions** (spawn driv
 
 ## Positioning
 
-- **vs Ralph:** Same **outer loop** idea, but **workflow is code** (`defineConfig`), **prompt and stop conditions are explicit functions**, and **multiple agents** via `--agent` / driver plugins (OpenCode, Cursor SDK, …). Ralph’s `plan.md` / `progress.txt` pattern is one possible implementation inside your functions—not a framework requirement.
+- **vs Ralph:** Same **outer loop** idea, but **workflow is code** (direct `Config` export), **prompt and stop conditions are explicit functions**, and **multiple agents** via `--agent` / driver plugins (OpenCode, Cursor SDK, …). Ralph’s `plan.md` / `progress.txt` pattern is one possible implementation inside your functions—not a framework requirement.
 - **vs Codex `/goal`:** We do not own the agent runtime; we **cannot** inject idle continuation or `update_goal` tools. We **can** gate the **outer** loop (sentinel in stdout, post-run checks, max iterations) in **`shouldContinue`** and friends.
 - **vs pi-autoresearch:** No `run_experiment` / `log_experiment` tools unless the **driver** exposes them. Optional later: workflows that wrap benchmark scripts from config code, not as a core requirement.
 
@@ -14,15 +14,17 @@ External CLI that orchestrates coding agents in a loop: **sessions** (spawn driv
 
 ## CLI surface
 
-| Command                       | Purpose                                                                                                                        |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                               |
-| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the session loop. |
-| **`automode doc [topic]`**    | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. |
+| Command                       | Purpose                                                                                                                        | Status      |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                               | Not yet     |
+| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, enter the session loop.                                                                 | In progress |
+| **`automode doc [topic]`**    | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. | Not yet     |
 
 **No** required `automode run` subcommand for the default path if desired: **`automode --agent cursor …`** can imply `run`—but **`automode run <workflow>`** stays the clear primary for multi-workflow repos.
 
 Root **`automode`** with no args: short help + pointer to **`automode doc`**.
+
+*(Current codebase has a placeholder `hello` command — to be replaced.)*
 
 ---
 
@@ -33,11 +35,11 @@ Everything for one workflow lives under **`.automode/<workflow>/`**:
 ```
 .automode/
   <workflow>/
-    config.ts       # export default defineConfig((ctx) => ({ ... }))
+    config.ts       # export default { prompt, shouldContinue } satisfies Config
     artifacts/      # optional: transcripts, captures (recommended gitignored)
 ```
 
-- **`config.ts`** — Sole required artifact: exports the workflow via **`defineConfig`**.
+- **`config.ts`** — Sole required artifact: exports the workflow as a **`Config`** object (direct default export, no factory).
 - **`artifacts/`** — Optional; runner or driver may drop stdout/stderr, transcripts, etc. Not prescribed for v1 beyond “a place to put bulky output if the driver supports it.”
 
 You may add **any other files** (`plan.md`, `progress.txt`, JSONL, etc.) as your own convention; **automode does not read or write them unless your `prompt` / `shouldContinue` code does.**
@@ -46,54 +48,52 @@ You may add **any other files** (`plan.md`, `progress.txt`, JSONL, etc.) as your
 
 ## Workflow authoring (`config.ts`)
 
-**`defineConfig`** takes a **factory** that receives a runner-managed **`ctx`** and returns two callables. The runner calls this factory **once** when the workflow starts (load `config.ts` → build initial **`ctx`** → **`defineConfig(ctx)`** → keep the returned **`{ prompt, shouldContinue }`** for the whole run). It invokes **`prompt()`** immediately before each agent spawn and **`shouldContinue()`** at the start of each loop iteration (see **Episode loop** below).
+**`config.ts`** directly exports an object matching the **`Config`** interface (no factory). The runner loads it and uses **`prompt(ctx)`** / **`shouldContinue(ctx)`** for the loop.
 
 ```ts
-export default defineConfig((ctx) => ({
-  prompt: () => {
+export default {
+  prompt: (ctx) => {
     // Return the full string sent to the driver this lap.
     // Read files, template literals, build from ctx — all allowed.
     return `You are in iteration ${ctx.iteration}. …`
   },
 
-  shouldContinue: () => {
-    // Return false to end the outer loop (replaces a ctx.stop() side effect).
+  shouldContinue: (ctx) => {
+    // Return false to end the outer loop.
     return ctx.iteration < 50 /* && !fs.existsSync("DONE") */
   },
-}))
+} satisfies Config
 ```
-
-Naming: **`defineConfig`** (not `defineWorkflow`) to keep mental model “this folder is a config package.”
 
 **Contracts:**
 
-- **`prompt: () => string`** — Called **before each** agent run. **Fully user-controlled**; the runner does not merge hidden instructions beyond global CLI flags/driver defaults.
-- **`shouldContinue: () => boolean`** — Pure **boolean** continuation; **no** `ctx.stop()`. When it returns **`false`**, the runner does not start another episode.
+- **`prompt: (ctx: RunContext) => string`** — Called **before each** agent run. **Fully user-controlled**; the runner does not merge hidden instructions beyond global CLI flags/driver defaults.
+- **`shouldContinue: (ctx: RunContext) => boolean`** — Pure **boolean** continuation. When it returns **`false`**, the runner does not start another episode.
 
 ---
 
 ## SDK / `ctx` (v1 — minimal)
 
-The factory **`defineConfig((ctx) => …)`** receives a **single `ctx` object** (same reference for the whole run). Between laps the runner **mutates** that object (e.g. **`ctx.iteration`**) so closures in **`prompt`** / **`shouldContinue`** always see up-to-date values. Further fields TBD in implementation. Documented minimum:
+**`prompt(ctx)`** and **`shouldContinue(ctx)`** receive a **`RunContext`** instance (immutable — a new object is created each iteration). Documented minimum:
 
-| Member              | Role                                                             |
-| ------------------- | ---------------------------------------------------------------- |
-| **`ctx.iteration`** | Lap counter (0- vs 1-based: fix in implementation and document). |
-| **`ctx.cwd`**       | Workspace root for this workflow.                                |
+| Member              | Role                              |
+| ------------------- | --------------------------------- |
+| **`ctx.iteration`** | Lap counter (0-based).            |
 
-**Later (when needed):** last exit code, paths to transcript, `ctx.exec`, driver/model overrides, signal/abort, etc.
+**Later (when needed):** `cwd`, last exit code, paths to transcript, `ctx.exec`, driver/model overrides, signal/abort, etc.
 
 ---
 
 ## Session loop (runner behavior)
 
-1. Resolve **`.automode/<workflow>/config.ts`**, construct **`ctx`**, call **`defineConfig(ctx)` exactly once** to obtain **`{ prompt, shouldContinue }`**, and keep that pair for the entire episode loop.
-2. **Loop:**
-   - If **`shouldContinue()`** is **`false`**, exit (no further spawns).
-   - Compute **`prompt()`** and spawn the **agent driver** with that string, **`ctx.cwd`**, and driver-specific options from env/CLI.
+1. Resolve **`.automode/<workflow>/config.ts`**, import the default export as the **`Config`** object.
+2. Initialize **`ctx = new RunContext({ iteration: 0 })`**.
+3. **Loop:**
+   - If **`shouldContinue(ctx)`** is **`false`**, exit (no further spawns).
+   - Compute **`prompt(ctx)`** and spawn the **agent driver** with that string.
    - Capture **exit code + optional artifacts** under **`artifacts/`** if configured.
    - Apply **`--max-iterations`** (or config field) as a **hard ceiling** even if **`shouldContinue`** never returns false.
-3. Before the next iteration, **mutate `ctx`** (e.g. increment **`ctx.iteration`**, attach last exit code when that exists) on the **same** object passed into **`defineConfig`**.
+4. Before the next iteration, create a **new `RunContext`** with **`iteration + 1`**.
 
 **Safety:** global **`--max-iterations`** remains a backstop.
 
@@ -109,14 +109,17 @@ The factory **`defineConfig((ctx) => …)`** receives a **single `ctx` object** 
 
 ## Persistence philosophy
 
-- **No mandated mission or progress files.** Persistence is **whatever your factory reads or writes** (git, optional local files, remote state). The runner only **requires** `config.ts` and defines the **episode loop** + **driver** boundary.
+- **No mandated mission or progress files.** Persistence is **whatever your config reads or writes** (git, optional local files, remote state). The runner only **requires** `config.ts` and defines the **episode loop** + **driver** boundary.
 
 ---
 
 ## Open decisions (track as we build)
 
-- **Driver API:** first driver (OpenCode subprocess vs Cursor SDK in-process); common interface: `run({ prompt, cwd, signal }) → { exitCode, stdoutPath }`.
+- **Driver API:** current implementation uses **OpenCode SDK** directly. Future: abstract driver interface (`run({ prompt, cwd, signal }) → { exitCode, stdoutPath }`) with plugins for OpenCode subprocess, Cursor SDK, etc.
+- **`init` command:** not yet implemented.
+- **`doc` command:** not yet implemented (docs/ has one markdown file).
 - **`init` default workflow name:** e.g. `default` vs `main`.
+- **`--max-iterations`:** not yet implemented.
 
 ---
 
@@ -130,7 +133,7 @@ The factory **`defineConfig((ctx) => …)`** receives a **single `ctx` object** 
 
 ## Success criteria
 
-- **`automode init`** produces a runnable **`.automode/default/`** (or chosen name) skeleton with **`config.ts`** only.
-- **`automode run <workflow>`** loops using **`prompt`**, **`shouldContinue`**, and **`ctx`** as documented, with **`--max-iterations`** safety.
-- **`automode doc`** works offline from bundled markdown.
+- **`automode init`** produces a runnable **`.automode/default/`** (or chosen name) skeleton with **`config.ts`** only. *(not yet)*
+- **`automode run <workflow>`** loops using **`prompt`**, **`shouldContinue`**, and **`RunContext`** as documented, with **`--max-iterations`** safety. *(loop logic exists with OpenCode SDK; CLI + max-iterations pending)*
+- **`automode doc`** works offline from bundled markdown. *(not yet)*
 - **`pnpm run check`** stays green after implementation land.
