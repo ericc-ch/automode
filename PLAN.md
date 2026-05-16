@@ -24,7 +24,7 @@ External CLI that orchestrates coding agents in a loop: **sessions** (spawn driv
 
 Root **`automode`** with no args: short help + pointer to **`automode doc`**.
 
-*(Current codebase has a placeholder `hello` command — to be replaced.)*
+_(Current codebase has a placeholder `hello` command — to be replaced.)_
 
 ---
 
@@ -76,9 +76,9 @@ export default {
 
 **`prompt(ctx)`** and **`shouldContinue(ctx)`** receive a **`RunContext`** instance (immutable — a new object is created each iteration). Documented minimum:
 
-| Member              | Role                              |
-| ------------------- | --------------------------------- |
-| **`ctx.iteration`** | Lap counter (0-based).            |
+| Member              | Role                   |
+| ------------------- | ---------------------- |
+| **`ctx.iteration`** | Lap counter (0-based). |
 
 **Later (when needed):** `cwd`, last exit code, paths to transcript, `ctx.exec`, driver/model overrides, signal/abort, etc.
 
@@ -133,7 +133,7 @@ export default {
 
 ## Success criteria
 
-- **`automode init`** produces a runnable **`.automode/default/`** (or chosen name) skeleton with **`config.ts`** only. *(not yet)*
-- **`automode run <workflow>`** loops using **`prompt`**, **`shouldContinue`**, and **`RunContext`** as documented, with **`--max-iterations`** safety. *(loop logic exists with OpenCode SDK; CLI + max-iterations pending)*
-- **`automode doc`** works offline from bundled markdown. *(not yet)*
+- **`automode init`** produces a runnable **`.automode/default/`** (or chosen name) skeleton with **`config.ts`** only. _(not yet)_
+- **`automode run <workflow>`** loops using **`prompt`**, **`shouldContinue`**, and **`RunContext`** as documented, with **`--max-iterations`** safety. _(loop logic exists with OpenCode SDK; CLI + max-iterations pending)_
+- **`automode doc`** works offline from bundled markdown. _(not yet)_
 - **`pnpm run check`** stays green after implementation land.
