@@ -1,6 +1,6 @@
 import { Effect, Layer } from "effect"
 import { ChildProcess } from "effect/unstable/process"
-import { CodingAgent, type SessionRequest } from "./coding-agent.ts"
+import { Agent, type SessionRequest } from "./agent.ts"
 
 export type OpencodeCliCodingAgentOptions = {
   /** Executable name or path; default `"opencode"`. */
@@ -21,7 +21,7 @@ export const layerOpencodeCli = (options: OpencodeCliCodingAgentOptions = {}) =>
   const command = options.command ?? "opencode"
   const argsBeforePrompt = options.argsBeforePrompt ?? defaultArgsBeforePrompt
 
-  return Layer.succeed(CodingAgent, {
+  return Layer.succeed(Agent, {
     runSession: Effect.fn(function* (request: SessionRequest) {
       const argv = [...argsBeforePrompt, request.prompt]
       const cmd = ChildProcess.make(command, argv, {

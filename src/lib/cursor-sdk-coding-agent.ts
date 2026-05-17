@@ -2,12 +2,12 @@ import { Agent } from "@cursor/sdk"
 import { Effect, Layer } from "effect"
 import { inspect } from "node:util"
 import {
-  CodingAgent,
+  Agent,
   CodingAgentInternal,
   CodingAgentMissingEnv,
   type CodingAgentApi,
   type SessionRequest,
-} from "./coding-agent.ts"
+} from "./agent.ts"
 
 export type CursorSdkCodingAgentConfig = {
   readonly apiKey: string
@@ -75,13 +75,13 @@ const makeApi = (config: CursorSdkCodingAgentConfig): CodingAgentApi => ({
  * fresh `opencode run` subprocess each time).
  */
 export const layerCursorSdk = (config: CursorSdkCodingAgentConfig) =>
-  Layer.succeed(CodingAgent, makeApi(config))
+  Layer.succeed(Agent, makeApi(config))
 
 /**
  * Builds config from `process.env` (`CURSOR_API_KEY`, optional `CURSOR_MODEL_ID`) and `process.cwd()`.
  * Empty `CURSOR_API_KEY` is only rejected inside `runSession` so the layer can still be composed.
  */
-export const layerCursorSdkFromEnv = Layer.sync(CodingAgent, () =>
+export const layerCursorSdkFromEnv = Layer.sync(Agent, () =>
   makeApi({
     apiKey: process.env.CURSOR_API_KEY ?? "",
     cwd: process.cwd(),

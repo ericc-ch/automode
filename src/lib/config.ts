@@ -9,7 +9,7 @@ export interface Config {
   shouldContinue: (context: RunContext) => boolean
 }
 
-export class WorkflowConfig extends Context.Service<WorkflowConfig>()("automode/WorkflowConfig", {
+export class WorkflowConfig extends Context.Service<WorkflowConfig>()("WorkflowConfig", {
   make: Effect.gen(function* () {
     const path = yield* Path.Path
 
