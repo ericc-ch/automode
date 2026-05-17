@@ -2,15 +2,24 @@
 
 This document compares three concrete approaches—**Codex `/goal`**, **Ralph** (a shell loop around OpenCode), and **pi-autoresearch** (a Pi extension)—and names the **underlying idea** they all instantiate so you can reuse the concept across products and agents.
 
+## Terminology (automode repo)
+
+Elsewhere in this repository (**`PLAN.md`**, CLI, implementation):
+
+- **Run** — One invocation of automode (e.g. the whole `automode run <workflow>` from start to exit).
+- **Session** — One bounded unit of agent work: from handing the agent a prompt until that **session** completes (no further tool calls; the agent runtime treats that pass as finished).
+
+Below, **Codex** and other products use their own words (“turn”, “thread”, `opencode run`). Where it helps, we relate them to automode’s **run** / **session** in passing.
+
 ---
 
 ## One-sentence essences
 
-- **Ralph:** A **shell loop** that repeatedly runs `opencode run` with a fixed `prompt.md`; **plan** and **progress** live in files (`plan.md`, `progress.txt`). Each iteration is a **new process** → the model gets **fresh context** every time; continuity is **entirely file-based**.
+- **Ralph:** A **shell loop** that repeatedly runs `opencode run` with a fixed `prompt.md`; **plan** and **progress** live in files (`plan.md`, `progress.txt`). Each **`opencode run`** is a **new process** → the model gets **fresh context** every time; continuity is **entirely file-based**. In automode terms, each process is often **one session**; the shell loop is an outer scheduler across many **sessions** (not the same as one automode **run** unless you wrap it that way).
 
-- **Codex `/goal`:** A **single persisted objective** on the thread, plus optional **idle continuation** (the runtime may start **another turn** without a new user message when the session is idle), and a **strict completion step** (`update_goal` → complete). The agent usually stays in **one long-lived session** with **continuous** context unless compacted or split.
+- **Codex `/goal`:** A **single persisted objective** on the thread, plus optional **idle continuation** (the runtime may start **another turn** without a new user message when the thread is idle), and a **strict completion step** (`update_goal` → complete). The agent usually stays in **one long-lived thread** with **continuous** context unless compacted or split. (Codex UI may call that a “session”; it is a **different** scope than automode’s **session** above.)
 
-- **pi-autoresearch:** **Pi** extension for an **experiment loop**: change code → **`run_experiment`** (benchmark script) → **`log_experiment`** (record result, **commit on keep / revert on discard**). State lives in **`autoresearch.md`** and **`autoresearch.jsonl`** so a **new** model or a **post-compaction** session can **resume by re-reading files**. Optimized for **measurable** targets (latency, loss, bundle size), not arbitrary prose missions.
+- **pi-autoresearch:** **Pi** extension for an **experiment loop**: change code → **`run_experiment`** (benchmark script) → **`log_experiment`** (record result, **commit on keep / revert on discard**). State lives in **`autoresearch.md`** and **`autoresearch.jsonl`** so a **new** model or a **post-compaction** stretch of work can **resume by re-reading files**. Optimized for **measurable** targets (latency, loss, bundle size), not arbitrary prose missions.
 
 ---
 
@@ -18,11 +27,13 @@ This document compares three concrete approaches—**Codex `/goal`**, **Ralph** 
 
 All three are instances of:
 
-> **Persist the mission and the ledger outside the model; run the model in short episodes; a scheduler decides when the next episode runs and ensures each episode re-syncs from storage so limited context does not erase intent.**
+> **Persist the mission and the ledger outside the model; run the model in short bounded passes; a scheduler decides when the next pass runs and ensures each pass re-syncs from storage so limited context does not erase intent.**
+
+In automode vocabulary: **sessions** (bounded agent work) inside an outer schedule; a full **run** of your orchestrator may chain many **sessions**.
 
 Shorter names that capture the same idea:
 
-- **Durable mission + episodic worker**
+- **Durable mission + session-bounded worker**
 - **Orchestrated autonomy** (orchestrator + worker, not one infinite chat)
 
 The **hard problem** is always: **context is finite, work is long, and “done” must be recognizable** (by the human, by the shell, or by the product). Files, JSONL, thread goals, and continuation prompts are **different implementations** of storage and scheduling for that problem.
@@ -35,8 +46,8 @@ The **hard problem** is always: **context is finite, work is long, and “done�
 | ------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
 | **Mission store**         | What “success” refers to; the north star | Thread goal text, `plan.md`, `autoresearch.md`                                                           |
 | **Progress store**        | What has been tried / decided            | `progress.txt`, rollout history, `autoresearch.jsonl`, git log                                           |
-| **Episode trigger**       | When to run the next model episode       | Idle in session, `sleep` + next `opencode run`, after `log_experiment`, post-compaction steer            |
-| **Episode contract**      | What every episode must do before acting | Read plan + progress; read autoresearch tail; continuation + `get_goal`                                  |
+| **Session trigger**       | When to start the next bounded agent pass | Idle on thread, `sleep` + next `opencode run`, after `log_experiment`, post-compaction steer            |
+| **Session contract**      | What each pass must do before acting     | Read plan + progress; read autoresearch tail; continuation + `get_goal`                                  |
 | **Termination predicate** | When the orchestrator stops scheduling   | `update_goal(complete)`, `<promise>COMPLETE</promise>`, user stops, `maxIterations`, `/autoresearch off` |
 | **Side-effect policy**    | What gets committed when                 | Per-task git commit (Ralph); keep/discard + git (autoresearch); ordinary Codex usage                     |
 | **Feedback channel**      | Optional measurable signal               | Benchmark metric + confidence; tests; none                                                               |
@@ -52,7 +63,7 @@ pi-autoresearch leans on **progress store + tools + git policy + metric feedback
 |                                 | **Codex `/goal`**                                                                                                                        | **Ralph**                                       | **pi-autoresearch**                                                   |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
 | **Primary job shape**           | Any long coding task you describe                                                                                                        | Checklist implementation from `plan.md`         | Numeric optimization (metric up/down)                                 |
-| **Continuity mechanism**        | Persisted goal + same session (often)                                                                                                    | New process each iteration; files are memory    | Files + jsonl; extension re-steers after compaction                   |
+| **Continuity mechanism**        | Persisted goal + same thread (often)                                                                                                    | New process each `opencode run`; files are memory | Files + jsonl; extension re-steers after compaction                   |
 | **“Run again”**                 | May **chain another turn when idle** (no queued user input)                                                                              | Explicit **`while` loop** + delay               | Agent loop + tools; **idle after compaction** → re-read session files |
 | **“Done”**                      | Tool: mark goal **complete** (not just chat)                                                                                             | Output contains completion **sentinel**         | Human stop, **max iterations**, or leave mode                         |
 | **Usage “charged” to the goal** | Counters on the goal record (time/tokens); mainly **product/UI/limits**; can surface in continuation text or **budget-limited** steering | Not modeled (you can add counters in the shell) | Per-run rows in jsonl + widget; not the same as “thread goal budget”  |
@@ -80,11 +91,11 @@ The **baseline** the agent always has: system instructions from the product, ava
 **Roughly similar in spirit** (durable objective, keep going until real completion)—but **not** the same as “Ralph minus one file.”
 
 - Codex still has **system** behavior and **tools**; there is no absence of instructions—your **`prompt.md`** is replaced by **product prompts + optional continuation**, not by nothing.
-- Ralph **always** gets a **fresh** context window each `opencode run`; `/goal` usually **extends one session** (unless you compact or restart).
+- Ralph **always** gets a **fresh** context window each `opencode run`; `/goal` usually **extends one thread** (unless you compact or restart).
 - Ralph’s **checklist** is first-class in **`plan.md`**; `/goal` is usually **one objective string** (you can still write “follow `plan.md`” inside that string).
 
-So: **`/goal` ≈ sticky mission + in-session idle continuation + strict completion tool.**  
-**Ralph ≈ many short agents + files as memory + your loop decides the next run.**
+So: **`/goal` ≈ sticky mission + in-thread idle continuation + strict completion tool.**  
+**Ralph ≈ many short processes + files as memory + your loop decides the next `opencode run`.**
 
 ---
 
@@ -95,13 +106,13 @@ They compose cleanly if you **avoid duplicating** the source of truth:
 - **`/goal` text:** a short pointer, e.g. “Execute the plan in `plan.md`, log to `progress.txt`, follow `prompt.md`.”
 - **Ralph layer:** `plan.md` / `progress.txt` / `prompt.md` remain the **detailed** mission and ledger.
 
-The **big** difference remains **one long-lived session vs a new subprocess each time**, not whether you use a plan file.
+The **big** difference remains **one long-lived thread vs a new subprocess each time**, not whether you use a plan file.
 
 ---
 
 ## pi-autoresearch vs the others (conceptual)
 
-- **Same abstraction:** durable mission (`autoresearch.md`) + ledger (`autoresearch.jsonl`) + episodic agent + scheduler (tool loop + compaction handling).
+- **Same abstraction:** durable mission (`autoresearch.md`) + ledger (`autoresearch.jsonl`) + bounded agent passes + scheduler (tool loop + compaction handling).
 - **Different emphasis:** **measurement and git discipline per try** (`run_experiment` / `log_experiment`, keep vs discard). It is a **science loop**, not a generic “finish this feature” primitive—though you can frame work as optimization if you define a metric and script.
 
 ---
@@ -109,8 +120,8 @@ The **big** difference remains **one long-lived session vs a new subprocess each
 ## What to reuse when designing for “any coding agent”
 
 1. **Split intent from execution:** intent and history live **outside** the model (DB, files, jsonl).
-2. **Define an episode:** one invocation with a clear **sync step** (“read these artifacts first”).
-3. **Define a scheduler:** what event causes the **next** episode (idle, timer, tool completion, shell loop).
+2. **Define a session (bounded pass):** one invocation with a clear **sync step** (“read these artifacts first”) until tool use quiesces / the runtime finishes that pass.
+3. **Define a scheduler:** what event causes the **next** pass (idle, timer, tool completion, shell loop).
 4. **Define termination** as something **machine-checkable** when possible (tool, sentinel, iteration cap)—not only natural language “we’re done.”
 5. **Optional:** feedback signal (tests, metrics) and side-effect rules (commit/revert policy).
 
