@@ -42,15 +42,15 @@ The **hard problem** is always: **context is finite, work is long, and “done�
 
 ## Reusable “slots” (same shape, different fillings)
 
-| Slot                      | Role                                     | Typical fillings                                                                                         |
-| ------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Mission store**         | What “success” refers to; the north star | Thread goal text, `plan.md`, `autoresearch.md`                                                           |
-| **Progress store**        | What has been tried / decided            | `progress.txt`, rollout history, `autoresearch.jsonl`, git log                                           |
-| **Session trigger**       | When to start the next bounded agent pass | Idle on thread, `sleep` + next `opencode run`, after `log_experiment`, post-compaction steer            |
-| **Session contract**      | What each pass must do before acting     | Read plan + progress; read autoresearch tail; continuation + `get_goal`                                  |
-| **Termination predicate** | When the orchestrator stops scheduling   | `update_goal(complete)`, `<promise>COMPLETE</promise>`, user stops, `maxIterations`, `/autoresearch off` |
-| **Side-effect policy**    | What gets committed when                 | Per-task git commit (Ralph); keep/discard + git (autoresearch); ordinary Codex usage                     |
-| **Feedback channel**      | Optional measurable signal               | Benchmark metric + confidence; tests; none                                                               |
+| Slot                      | Role                                      | Typical fillings                                                                                         |
+| ------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Mission store**         | What “success” refers to; the north star  | Thread goal text, `plan.md`, `autoresearch.md`                                                           |
+| **Progress store**        | What has been tried / decided             | `progress.txt`, rollout history, `autoresearch.jsonl`, git log                                           |
+| **Session trigger**       | When to start the next bounded agent pass | Idle on thread, `sleep` + next `opencode run`, after `log_experiment`, post-compaction steer             |
+| **Session contract**      | What each pass must do before acting      | Read plan + progress; read autoresearch tail; continuation + `get_goal`                                  |
+| **Termination predicate** | When the orchestrator stops scheduling    | `update_goal(complete)`, `<promise>COMPLETE</promise>`, user stops, `maxIterations`, `/autoresearch off` |
+| **Side-effect policy**    | What gets committed when                  | Per-task git commit (Ralph); keep/discard + git (autoresearch); ordinary Codex usage                     |
+| **Feedback channel**      | Optional measurable signal                | Benchmark metric + confidence; tests; none                                                               |
 
 `/goal` leans on **mission store + idle trigger + strict termination**.  
 Ralph leans on **files for mission/progress + outer-loop trigger + sentinel termination**.  
@@ -60,13 +60,13 @@ pi-autoresearch leans on **progress store + tools + git policy + metric feedback
 
 ## Side-by-side comparison
 
-|                                 | **Codex `/goal`**                                                                                                                        | **Ralph**                                       | **pi-autoresearch**                                                   |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
-| **Primary job shape**           | Any long coding task you describe                                                                                                        | Checklist implementation from `plan.md`         | Numeric optimization (metric up/down)                                 |
-| **Continuity mechanism**        | Persisted goal + same thread (often)                                                                                                    | New process each `opencode run`; files are memory | Files + jsonl; extension re-steers after compaction                   |
-| **“Run again”**                 | May **chain another turn when idle** (no queued user input)                                                                              | Explicit **`while` loop** + delay               | Agent loop + tools; **idle after compaction** → re-read session files |
-| **“Done”**                      | Tool: mark goal **complete** (not just chat)                                                                                             | Output contains completion **sentinel**         | Human stop, **max iterations**, or leave mode                         |
-| **Usage “charged” to the goal** | Counters on the goal record (time/tokens); mainly **product/UI/limits**; can surface in continuation text or **budget-limited** steering | Not modeled (you can add counters in the shell) | Per-run rows in jsonl + widget; not the same as “thread goal budget”  |
+|                                 | **Codex `/goal`**                                                                                                                        | **Ralph**                                         | **pi-autoresearch**                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
+| **Primary job shape**           | Any long coding task you describe                                                                                                        | Checklist implementation from `plan.md`           | Numeric optimization (metric up/down)                                 |
+| **Continuity mechanism**        | Persisted goal + same thread (often)                                                                                                     | New process each `opencode run`; files are memory | Files + jsonl; extension re-steers after compaction                   |
+| **“Run again”**                 | May **chain another turn when idle** (no queued user input)                                                                              | Explicit **`while` loop** + delay                 | Agent loop + tools; **idle after compaction** → re-read session files |
+| **“Done”**                      | Tool: mark goal **complete** (not just chat)                                                                                             | Output contains completion **sentinel**           | Human stop, **max iterations**, or leave mode                         |
+| **Usage “charged” to the goal** | Counters on the goal record (time/tokens); mainly **product/UI/limits**; can surface in continuation text or **budget-limited** steering | Not modeled (you can add counters in the shell)   | Per-run rows in jsonl + widget; not the same as “thread goal budget”  |
 
 ---
 

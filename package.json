@@ -45,6 +45,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.13",
     "@effect/platform-node": "^4.0.0-beta.59",
     "@opencode-ai/sdk": "^1.15.1",
     "effect": "^4.0.0-beta.59"

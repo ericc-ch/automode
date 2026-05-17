@@ -23,8 +23,8 @@ External CLI that orchestrates coding agents: **workflow logic in TypeScript** p
 
 | Command                       | Purpose                                                                                                                        | Status      |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------- |
-| **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                             | Implemented |
-| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, execute one **run** (loop **sessions** until `shouldContinue` is false).               | In progress |
+| **`automode init`**           | Scaffold `.automode/<example>/` with `config.ts` and `.gitignore` hints (optional `artifacts/`).                               | Implemented |
+| **`automode run <workflow>`** | Load `.automode/<workflow>/config.ts`, execute one **run** (loop **sessions** until `shouldContinue` is false).                | In progress |
 | **`automode doc [topic]`**    | **Go `doc`-style:** show bundled markdown for a topic; use `$PAGER` when TTY. Optional later: `--online` to fetch latest docs. | Not yet     |
 
 **No** required `automode run` subcommand for the default path if desired: **`automode --agent cursor …`** can imply `run`—but **`automode run <workflow>`** stays the clear primary for multi-workflow repos.
@@ -81,8 +81,8 @@ export default {
 
 **`prompt(ctx)`** and **`shouldContinue(ctx)`** receive a **`RunContext`** instance (immutable — a new object is created after each **session**). Documented minimum:
 
-| Member              | Role                                                                 |
-| ------------------- | -------------------------------------------------------------------- |
+| Member              | Role                                                                  |
+| ------------------- | --------------------------------------------------------------------- |
 | **`ctx.iteration`** | Counter within this **run** (0-based by convention; bumps each loop). |
 
 **Later (when needed):** `cwd`, last exit code, paths to transcript, `ctx.exec`, **agent** / model overrides, signal/abort, etc.
