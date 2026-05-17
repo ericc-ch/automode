@@ -50,19 +50,15 @@ export const layerOpencodeWith = (options: OpencodeAgentOptions = {}) => {
 
       return {
         run: Effect.fn(function* (request: AgentRequest) {
-          const childProcess = ChildProcess.make(
-            command,
-            [...argsBeforePrompt, request.prompt],
-            {
-              cwd: request.cwd,
-              stdout: "inherit",
-              stderr: "inherit",
-              stdin: "inherit",
-            },
-          )
-          const exitCode = yield* spawner.exitCode(childProcess).pipe(
-            Effect.mapError((cause) => new AgentInternal({ cause })),
-          )
+          const childProcess = ChildProcess.make(command, [...argsBeforePrompt, request.prompt], {
+            cwd: request.cwd,
+            stdout: "inherit",
+            stderr: "inherit",
+            stdin: "inherit",
+          })
+          const exitCode = yield* spawner
+            .exitCode(childProcess)
+            .pipe(Effect.mapError((cause) => new AgentInternal({ cause })))
 
           if (exitCode !== 0) {
             return yield* new AgentRunFailed({ exitCode })
