@@ -6,6 +6,6 @@ export default {
   },
 
   shouldContinue: (ctx) => {
-    true
+    return ctx.iteration > 1 ? false : true
   },
 } satisfies Config
