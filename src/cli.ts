@@ -9,10 +9,7 @@ import { Agent, layerOpencode, layerCursorSdkFromEnv } from "./lib/agent.ts"
 
 const templatePath = fileURLToPath(new URL("./templates/config.ts.txt", import.meta.url))
 
-const agentFlag = Flag.string("agent").pipe(
-  Flag.withAlias("a"),
-  Flag.withDefault("opencode"),
-)
+const agentFlag = Flag.string("agent").pipe(Flag.withAlias("a"), Flag.withDefault("opencode"))
 
 const initCommand = Command.make(
   "init",
@@ -75,9 +72,7 @@ const runCommand = Command.make(
     { command: "automode run my-workflow", description: "Run with opencode (default)" },
     { command: "automode run my-workflow --agent cursor", description: "Run with cursor" },
   ]),
-  Command.provide(({ agent }) =>
-    agent === "cursor" ? layerCursorSdkFromEnv : layerOpencode
-  ),
+  Command.provide(({ agent }) => (agent === "cursor" ? layerCursorSdkFromEnv : layerOpencode)),
 )
 
 const command = Command.make("automode", {}).pipe(
