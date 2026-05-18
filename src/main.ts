@@ -1,7 +1,7 @@
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
-import { ChildProcess } from "effect/unstable/process"
 import { RunContext, WorkflowConfig } from "./lib/config.ts"
+import { Agent, layerOpencode } from "./lib/agent.ts"
 export { RunContext, WorkflowConfig } from "./lib/config.ts"
 export type { Config as Workflow } from "./lib/config.ts"
 
@@ -13,6 +13,7 @@ export const run = (workflowName: string) =>
     const workflow = yield* config.load(workflowName)
     yield* Effect.logInfo(`Loaded workflow: ${workflowName}`)
 
+    const agent = yield* Agent
     let ctx = new RunContext({ iteration: 1 })
 
     while (workflow.shouldContinue(ctx)) {
@@ -21,18 +22,7 @@ export const run = (workflowName: string) =>
       const promptText = workflow.prompt(ctx)
       yield* Effect.logInfo(`Prompt: ${promptText.substring(0, 100)}...`)
 
-      const cmd = ChildProcess.make(
-        "opencode",
-        ["run", "--dangerously-skip-permissions", promptText],
-        {
-          stdout: "inherit",
-          stderr: "inherit",
-          stdin: "inherit",
-        },
-      )
-
-      const handle = yield* cmd
-      yield* handle.exitCode
+      yield* agent.run({ prompt: promptText })
 
       yield* Effect.logInfo(`Iteration ${ctx.iteration + 1} completed`)
 
@@ -40,10 +30,11 @@ export const run = (workflowName: string) =>
     }
 
     yield* Effect.logInfo("Workflow completed")
-  }).pipe(Effect.scoped)
+  })
 
 const layers = Layer.empty.pipe(
   Layer.merge(WorkflowConfig.layer),
+  Layer.merge(layerOpencode),
   Layer.provideMerge(NodeServices.layer),
 )
 
